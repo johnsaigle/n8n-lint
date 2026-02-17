@@ -1,0 +1,53 @@
+{
+  "name": "Valid Minimal Workflow",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "trigger-schedule",
+      "name": "Every 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "*/5 * * * *"}]
+        }
+      },
+      "position": [0, 200]
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [400, 200]
+    },
+    {
+      "id": "ntfy-success",
+      "name": "Notify ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "http://172.17.0.1:8080",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "Basic YWRtaW46MTIzNDU2Nzg="}
+          ]
+        },
+        "body": "={{ JSON.stringify({ topic: 'test', message: 'done' }) }}"
+      },
+      "position": [200, 0]
+    }
+  ],
+  "connections": {},
+  "tags": ["test"]
+}

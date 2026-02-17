@@ -1,0 +1,57 @@
+{
+  "name": "Duplicate Positions",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "node-a",
+      "name": "Node A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {"url": "https://example.com"},
+      "position": [200, 100]
+    },
+    {
+      "id": "node-b",
+      "name": "Node B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {"url": "https://example.com"},
+      "position": [200, 100]
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [400, 0]
+    },
+    {
+      "id": "ntfy-notify",
+      "name": "Notify ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "http://172.17.0.1:8080",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "Basic YWRtaW46MTIzNDU2Nzg="}
+          ]
+        },
+        "body": "={{ JSON.stringify({ topic: 'test', message: 'done' }) }}"
+      },
+      "position": [600, 0]
+    }
+  ],
+  "connections": {},
+  "tags": ["test"]
+}

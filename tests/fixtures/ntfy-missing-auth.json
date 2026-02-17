@@ -1,0 +1,35 @@
+{
+  "name": "ntfy Missing Auth",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "ntfy-no-auth",
+      "name": "Notify ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "http://172.17.0.1:8080",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ topic: 'test', message: 'done' }) }}"
+      },
+      "position": [200, 0]
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [400, 0]
+    }
+  ],
+  "connections": {},
+  "tags": ["test"]
+}

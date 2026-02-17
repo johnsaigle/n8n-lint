@@ -1,0 +1,53 @@
+{
+  "name": "Ollama No Think",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "ollama-bad",
+      "name": "Summarize with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "http://172.17.0.1:11434/api/generate",
+        "method": "POST",
+        "body": "{\"model\": \"qwen3:14b\", \"prompt\": \"/no_think Summarize: {{ $json.text }}\", \"stream\": false}"
+      },
+      "position": [200, 0]
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [400, 0]
+    },
+    {
+      "id": "ntfy-notify",
+      "name": "Notify ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "http://172.17.0.1:8080",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "Basic YWRtaW46MTIzNDU2Nzg="}
+          ]
+        },
+        "body": "={{ JSON.stringify({ topic: 'test', message: 'done' }) }}"
+      },
+      "position": [200, 200]
+    }
+  ],
+  "connections": {},
+  "tags": ["test"]
+}

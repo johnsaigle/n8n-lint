@@ -1,0 +1,26 @@
+{
+  "name": "Missing Error Handling",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "http-req",
+      "name": "Fetch Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "url": "https://api.example.com/data",
+        "method": "GET"
+      },
+      "position": [200, 0]
+    }
+  ],
+  "connections": {},
+  "tags": ["test"]
+}
