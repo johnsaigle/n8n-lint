@@ -1,0 +1,34 @@
+{
+  "name": "Extract From File Valid",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "extract-1",
+      "name": "Extract JSON",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "parameters": {
+        "operation": "fromJson"
+      },
+      "position": [200, 0]
+    },
+    {
+      "id": "extract-2",
+      "name": "Extract CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "parameters": {
+        "operation": "csv"
+      },
+      "position": [400, 0]
+    }
+  ],
+  "connections": {}
+}

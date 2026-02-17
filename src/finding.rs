@@ -11,8 +11,8 @@ pub enum Severity {
 impl std::fmt::Display for Severity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Severity::Error => write!(f, "error"),
-            Severity::Warning => write!(f, "warning"),
+            Self::Error => write!(f, "error"),
+            Self::Warning => write!(f, "warning"),
         }
     }
 }
@@ -31,6 +31,7 @@ pub struct Finding {
 }
 
 impl Finding {
+    #[must_use]
     pub fn error(rule: &str, message: &str) -> Self {
         Self {
             rule: rule.to_string(),
@@ -42,6 +43,7 @@ impl Finding {
         }
     }
 
+    #[must_use]
     pub fn warning(rule: &str, message: &str) -> Self {
         Self {
             rule: rule.to_string(),
@@ -53,12 +55,14 @@ impl Finding {
         }
     }
 
+    #[must_use]
     pub fn with_node(mut self, id: Option<&str>, name: Option<&str>) -> Self {
-        self.node_id = id.map(|s| s.to_string());
-        self.node_name = name.map(|s| s.to_string());
+        self.node_id = id.map(std::string::ToString::to_string);
+        self.node_name = name.map(std::string::ToString::to_string);
         self
     }
 
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: &str) -> Self {
         self.suggestion = Some(suggestion.to_string());
         self
@@ -74,6 +78,7 @@ pub struct LintResult {
 }
 
 impl LintResult {
+    #[must_use]
     pub fn new(findings: Vec<Finding>) -> Self {
         let errors = findings
             .iter()

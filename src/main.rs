@@ -60,10 +60,10 @@ fn main() {
         }
         _ => {
             for (path, result) in &results {
-                let filename = path
-                    .file_name()
-                    .map(|f| f.to_string_lossy().to_string())
-                    .unwrap_or_else(|| path.display().to_string());
+                let filename = path.file_name().map_or_else(
+                    || path.display().to_string(),
+                    |f| f.to_string_lossy().to_string(),
+                );
                 print!("{}", n8n_lint::format_human(result, &filename));
             }
         }

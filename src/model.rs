@@ -31,61 +31,79 @@ pub struct Node {
 
 impl Node {
     /// Get node type as str, defaulting to empty
+    #[must_use]
     pub fn type_str(&self) -> &str {
         self.node_type.as_deref().unwrap_or("")
     }
 
     /// Get node id as str
+    #[must_use]
     pub fn id_str(&self) -> Option<&str> {
         self.id.as_deref()
     }
 
     /// Get node name as str
+    #[must_use]
     pub fn name_str(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
     /// Get a string parameter value by key
+    #[must_use]
     pub fn param_str(&self, key: &str) -> Option<&str> {
         self.parameters.as_ref()?.get(key)?.as_str()
     }
 
     /// Get the full parameters value
-    pub fn params(&self) -> Option<&Value> {
+    #[must_use]
+    pub const fn params(&self) -> Option<&Value> {
         self.parameters.as_ref()
     }
 
     /// Check if this is an SSH node
+    #[must_use]
     pub fn is_ssh(&self) -> bool {
         self.type_str() == "n8n-nodes-base.ssh"
     }
 
     /// Check if this is a Code node
+    #[must_use]
     pub fn is_code(&self) -> bool {
         self.type_str() == "n8n-nodes-base.code"
     }
 
     /// Check if this is an HTTP Request node
+    #[must_use]
     pub fn is_http_request(&self) -> bool {
         self.type_str() == "n8n-nodes-base.httpRequest"
     }
 
     /// Check if this is a Schedule Trigger
+    #[must_use]
     pub fn is_schedule_trigger(&self) -> bool {
         self.type_str() == "n8n-nodes-base.scheduleTrigger"
     }
 
     /// Check if this is a Manual Trigger
+    #[must_use]
     pub fn is_manual_trigger(&self) -> bool {
         self.type_str() == "n8n-nodes-base.manualTrigger"
     }
 
     /// Check if this is an Error Trigger
+    #[must_use]
     pub fn is_error_trigger(&self) -> bool {
         self.type_str() == "n8n-nodes-base.errorTrigger"
     }
 
+    /// Check if this is an Extract From File node
+    #[must_use]
+    pub fn is_extract_from_file(&self) -> bool {
+        self.type_str() == "n8n-nodes-base.extractFromFile"
+    }
+
     /// Recursively collect all string values from the parameters (for deep searching)
+    #[must_use]
     pub fn all_param_strings(&self) -> Vec<String> {
         let mut strings = Vec::new();
         if let Some(params) = &self.parameters {

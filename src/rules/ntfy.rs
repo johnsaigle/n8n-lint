@@ -3,6 +3,7 @@ use crate::finding::Finding;
 use crate::model::Node;
 
 /// Heuristic: does this HTTP Request node talk to ntfy?
+#[must_use]
 pub fn is_ntfy_node(node: &Node) -> bool {
     if !node.is_http_request() {
         return false;
@@ -47,7 +48,8 @@ pub fn is_ntfy_node(node: &Node) -> bool {
     has_topic && has_message_or_title
 }
 
-/// Check ntfy nodes use JSON.stringify pattern for body
+/// Check ntfy nodes use `JSON.stringify` pattern for body
+#[must_use]
 pub fn check_json_stringify(node: &Node) -> Vec<Finding> {
     if !is_ntfy_node(node) {
         return vec![];
@@ -86,6 +88,7 @@ pub fn check_json_stringify(node: &Node) -> Vec<Finding> {
 }
 
 /// Check ntfy nodes have Authorization header
+#[must_use]
 pub fn check_auth_header(node: &Node) -> Vec<Finding> {
     if !is_ntfy_node(node) {
         return vec![];
@@ -114,6 +117,7 @@ pub fn check_auth_header(node: &Node) -> Vec<Finding> {
 }
 
 /// Check ntfy header values for non-ASCII characters
+#[must_use]
 pub fn check_ascii_headers(node: &Node) -> Vec<Finding> {
     if !is_ntfy_node(node) {
         return vec![];
@@ -154,9 +158,8 @@ fn check_value_for_non_ascii(value: &serde_json::Value, node: &Node, findings: &
                     Finding::warning(
                         "ntfy-ascii-headers",
                         &format!(
-                            "ntfy header contains non-ASCII characters: {:?}. \
-                             HTTP headers must be ASCII-only (RFC 7230)",
-                            non_ascii
+                            "ntfy header contains non-ASCII characters: {non_ascii:?}. \
+                             HTTP headers must be ASCII-only (RFC 7230)"
                         ),
                     )
                     .with_node(node.id_str(), node.name_str())
@@ -181,6 +184,11 @@ fn check_value_for_non_ascii(value: &serde_json::Value, node: &Node, findings: &
 }
 
 /// Check for hardcoded service ports in ntfy URLs
+///
+/// # Panics
+///
+/// Panics if the regex pattern is invalid (should never happen with a static pattern).
+#[must_use]
 pub fn check_hardcoded_port(node: &Node) -> Vec<Finding> {
     if !is_ntfy_node(node) {
         return vec![];
@@ -211,6 +219,7 @@ pub fn check_hardcoded_port(node: &Node) -> Vec<Finding> {
 }
 
 /// Run all ntfy rules
+#[must_use]
 pub fn check_all(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     findings.extend(check_json_stringify(node));

@@ -21,7 +21,8 @@ const FORBIDDEN_MODULES: &[&str] = &[
     "readline",
 ];
 
-/// Check Code nodes for forbidden require() calls
+/// Check Code nodes for forbidden `require()` calls
+#[must_use]
 pub fn check_forbidden_require(node: &Node) -> Vec<Finding> {
     if !node.is_code() {
         return vec![];
@@ -32,10 +33,10 @@ pub fn check_forbidden_require(node: &Node) -> Vec<Finding> {
     if let Some(code) = node.param_str("jsCode") {
         for module in FORBIDDEN_MODULES {
             let patterns = [
-                format!("require('{}')", module),
-                format!("require(\"{}\")", module),
-                format!("require('{}/", module),
-                format!("require(\"{}/", module),
+                format!("require('{module}')"),
+                format!("require(\"{module}\")"),
+                format!("require('{module}/"),
+                format!("require(\"{module}/"),
             ];
 
             for pattern in &patterns {
@@ -44,8 +45,7 @@ pub fn check_forbidden_require(node: &Node) -> Vec<Finding> {
                         Finding::error(
                             "code-forbidden-require",
                             &format!(
-                                "Code node uses require('{}') which is blocked in n8n's sandbox",
-                                module
+                                "Code node uses require('{module}') which is blocked in n8n's sandbox"
                             ),
                         )
                         .with_node(node.id_str(), node.name_str())
@@ -65,6 +65,7 @@ pub fn check_forbidden_require(node: &Node) -> Vec<Finding> {
 }
 
 /// Check for node types that don't exist in Docker n8n
+#[must_use]
 pub fn check_invalid_node_type(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
 
@@ -89,6 +90,7 @@ pub fn check_invalid_node_type(node: &Node) -> Vec<Finding> {
 }
 
 /// Run all code node rules
+#[must_use]
 pub fn check_all(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     findings.extend(check_forbidden_require(node));

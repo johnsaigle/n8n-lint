@@ -348,6 +348,143 @@ fn opencode_timeout_too_low() {
     );
 }
 
+// ── Extract From File Rules ──────────────────────────────────────
+
+#[test]
+fn extract_from_file_bad_operation() {
+    let result = n8n_lint::lint_file(&fixture("extract-from-file-bad-operation.json")).unwrap();
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "extract-from-file-operation")
+        .collect();
+    assert!(
+        !findings.is_empty(),
+        "Expected extract-from-file-operation finding for 'json'"
+    );
+    assert_eq!(findings[0].severity, Severity::Error);
+    assert!(
+        findings[0].message.contains("\"json\""),
+        "Message should mention the invalid operation"
+    );
+    assert!(
+        findings[0]
+            .suggestion
+            .as_ref()
+            .is_some_and(|s| s.contains("fromJson")),
+        "Suggestion should recommend 'fromJson'"
+    );
+}
+
+#[test]
+fn extract_from_file_valid_operation() {
+    let result = n8n_lint::lint_file(&fixture("extract-from-file-valid.json")).unwrap();
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "extract-from-file-operation")
+        .collect();
+    assert!(
+        findings.is_empty(),
+        "Valid extractFromFile operations should not trigger: {:?}",
+        findings
+    );
+}
+
+#[test]
+fn extract_from_file_missing_operation() {
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "extract-no-op",
+            "name": "Extract Missing Op",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "parameters": {},
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "extract-from-file-operation")
+        .collect();
+    assert!(
+        !findings.is_empty(),
+        "Expected extract-from-file-operation finding for missing operation"
+    );
+    assert!(
+        findings[0].message.contains("missing"),
+        "Message should mention the missing parameter"
+    );
+}
+
+#[test]
+fn extract_from_file_fuzzy_ics() {
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "extract-ics",
+            "name": "Extract ICS",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "parameters": {
+                "operation": "ics"
+            },
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "extract-from-file-operation")
+        .collect();
+    assert!(!findings.is_empty(), "Expected finding for 'ics' operation");
+    assert!(
+        findings[0]
+            .suggestion
+            .as_ref()
+            .is_some_and(|s| s.contains("fromIcs")),
+        "Should suggest 'fromIcs' for 'ics'"
+    );
+}
+
+#[test]
+fn extract_from_file_no_suggestion_for_garbage() {
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "extract-garbage",
+            "name": "Extract Garbage",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "parameters": {
+                "operation": "notarealformat"
+            },
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "extract-from-file-operation")
+        .collect();
+    assert!(
+        !findings.is_empty(),
+        "Expected finding for garbage operation"
+    );
+    assert!(
+        findings[0]
+            .suggestion
+            .as_ref()
+            .is_some_and(|s| s.starts_with("Use one of:")),
+        "Should list all valid operations when no fuzzy match found"
+    );
+}
+
 // ── Output Formats ───────────────────────────────────────────────
 
 #[test]

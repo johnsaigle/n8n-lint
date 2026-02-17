@@ -3,7 +3,8 @@ use crate::finding::Finding;
 use crate::model::{Node, Workflow};
 use std::collections::HashMap;
 
-/// Check OpenCode HTTP calls have sufficient timeout
+/// Check `OpenCode` HTTP calls have sufficient timeout
+#[must_use]
 pub fn check_opencode_timeout(node: &Node) -> Vec<Finding> {
     if !node.is_http_request() {
         return vec![];
@@ -26,21 +27,21 @@ pub fn check_opencode_timeout(node: &Node) -> Vec<Finding> {
 
         match timeout {
             Some(t) => {
-                if let Some(ms) = t.as_u64().or_else(|| t.as_f64().map(|f| f as u64)) {
-                    if ms < 300_000 {
-                        findings.push(
-                            Finding::error(
-                                "opencode-timeout",
-                                &format!(
-                                    "OpenCode HTTP call has timeout of {}ms (< 300000ms). \
-                                     Tool-heavy prompts can take minutes",
-                                    ms
-                                ),
-                            )
-                            .with_node(node.id_str(), node.name_str())
-                            .with_suggestion("Set timeout to 300000+ ms"),
-                        );
-                    }
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                if let Some(ms) = t.as_u64().or_else(|| t.as_f64().map(|f| f as u64))
+                    && ms < 300_000
+                {
+                    findings.push(
+                        Finding::error(
+                            "opencode-timeout",
+                            &format!(
+                                "OpenCode HTTP call has timeout of {ms}ms (< 300000ms). \
+                                 Tool-heavy prompts can take minutes"
+                            ),
+                        )
+                        .with_node(node.id_str(), node.name_str())
+                        .with_suggestion("Set timeout to 300000+ ms"),
+                    );
                 }
             }
             None => {
@@ -61,6 +62,7 @@ pub fn check_opencode_timeout(node: &Node) -> Vec<Finding> {
 }
 
 /// Check for unmatched expression delimiters
+#[must_use]
 pub fn check_expression_syntax(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     let strings = node.all_param_strings();
@@ -79,8 +81,7 @@ pub fn check_expression_syntax(node: &Node) -> Vec<Finding> {
                 Finding::error(
                     "expression-syntax",
                     &format!(
-                        "Unmatched expression delimiters: {} opening '{{{{' vs {} closing '}}}}'",
-                        opens, closes
+                        "Unmatched expression delimiters: {opens} opening '{{{{' vs {closes} closing '}}}}'"
                     ),
                 )
                 .with_node(node.id_str(), node.name_str())
@@ -94,40 +95,38 @@ pub fn check_expression_syntax(node: &Node) -> Vec<Finding> {
 }
 
 /// Check for placeholder credentials
+#[must_use]
 pub fn check_credential_placeholder(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
 
-    if let Some(creds) = node.credentials.as_ref() {
-        if let Some(obj) = creds.as_object() {
-            for (cred_type, cred_value) in obj {
-                let cred_str = cred_value.to_string();
-                if cred_str.contains("CONFIGURE_ME") {
-                    findings.push(
-                        Finding::error(
-                            "credential-placeholder",
-                            &format!(
-                                "Credential '{}' has placeholder value 'CONFIGURE_ME'",
-                                cred_type
-                            ),
-                        )
-                        .with_node(node.id_str(), node.name_str())
-                        .with_suggestion("Configure actual credentials in n8n UI before importing"),
-                    );
-                }
+    if let Some(creds) = node.credentials.as_ref()
+        && let Some(obj) = creds.as_object()
+    {
+        for (cred_type, cred_value) in obj {
+            let cred_str = cred_value.to_string();
+            if cred_str.contains("CONFIGURE_ME") {
+                findings.push(
+                    Finding::error(
+                        "credential-placeholder",
+                        &format!("Credential '{cred_type}' has placeholder value 'CONFIGURE_ME'"),
+                    )
+                    .with_node(node.id_str(), node.name_str())
+                    .with_suggestion("Configure actual credentials in n8n UI before importing"),
+                );
+            }
 
-                // Check for empty credential ID
-                if let Some(id) = cred_value.get("id") {
-                    if id.as_str() == Some("") {
-                        findings.push(
-                            Finding::error(
-                                "credential-placeholder",
-                                &format!("Credential '{}' has empty ID", cred_type),
-                            )
-                            .with_node(node.id_str(), node.name_str())
-                            .with_suggestion("Configure credentials in n8n UI before importing"),
-                        );
-                    }
-                }
+            // Check for empty credential ID
+            if let Some(id) = cred_value.get("id")
+                && id.as_str() == Some("")
+            {
+                findings.push(
+                    Finding::error(
+                        "credential-placeholder",
+                        &format!("Credential '{cred_type}' has empty ID"),
+                    )
+                    .with_node(node.id_str(), node.name_str())
+                    .with_suggestion("Configure credentials in n8n UI before importing"),
+                );
             }
         }
     }
@@ -135,10 +134,17 @@ pub fn check_credential_placeholder(node: &Node) -> Vec<Finding> {
     findings
 }
 
-/// Check OpenCode PWA URLs have proper base64 padding
+/// Check `OpenCode` PWA URLs have proper base64 padding
+///
+/// # Panics
+///
+/// Panics if the regex pattern is invalid (should never happen with a static pattern).
+#[must_use]
 pub fn check_base64_padding(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     let strings = node.all_param_strings();
+
+    let re = regex::Regex::new(r"/([A-Za-z0-9+/_-]+)/session/").unwrap();
 
     for s in &strings {
         // Look for OpenCode PWA URL pattern
@@ -148,7 +154,6 @@ pub fn check_base64_padding(node: &Node) -> Vec<Finding> {
 
         // Pattern: http://host:port/<base64>/session/<session_id>
         // The base64 segment for /home/psychopomp should be L2hvbWUvcHN5Y2hvcG9tcA==
-        let re = regex::Regex::new(r"/([A-Za-z0-9+/_-]+)/session/").unwrap();
         if let Some(caps) = re.captures(s) {
             let b64 = &caps[1];
             // Check if it looks like base64 but missing padding
@@ -171,24 +176,27 @@ pub fn check_base64_padding(node: &Node) -> Vec<Finding> {
 }
 
 /// Check workflow tags are string array, not object array
+#[must_use]
 pub fn check_tags_format(workflow: &Workflow) -> Vec<Finding> {
-    if let Some(tags) = &workflow.tags {
-        if let Some(arr) = tags.as_array() {
-            if arr.iter().any(|t| t.is_object()) {
-                return vec![Finding::warning(
-                    "tags-format",
-                    "Workflow tags should be a string array, not an object array. \
-                         The n8n API expects string arrays for import",
-                )
-                .with_suggestion("Flatten tags: [{\"name\": \"foo\"}] -> [\"foo\"]")];
-            }
-        }
+    if let Some(tags) = &workflow.tags
+        && let Some(arr) = tags.as_array()
+        && arr.iter().any(serde_json::Value::is_object)
+    {
+        return vec![
+            Finding::warning(
+                "tags-format",
+                "Workflow tags should be a string array, not an object array. \
+                 The n8n API expects string arrays for import",
+            )
+            .with_suggestion("Flatten tags: [{\"name\": \"foo\"}] -> [\"foo\"]"),
+        ];
     }
 
     vec![]
 }
 
-/// Check for /no_think in Ollama API calls (should use "think": false)
+/// Check for `/no_think` in Ollama API calls (should use "think": false)
+#[must_use]
 pub fn check_ollama_no_think(node: &Node) -> Vec<Finding> {
     if !node.is_http_request() {
         return vec![];
@@ -229,6 +237,7 @@ pub fn check_ollama_no_think(node: &Node) -> Vec<Finding> {
 }
 
 /// Check for overly-frequent polling intervals
+#[must_use]
 pub fn check_polling_interval(node: &Node) -> Vec<Finding> {
     if !node.is_schedule_trigger() {
         return vec![];
@@ -260,6 +269,7 @@ pub fn check_polling_interval(node: &Node) -> Vec<Finding> {
 }
 
 /// Check for duplicate node positions (workflow-level)
+#[must_use]
 pub fn check_duplicate_positions(nodes: &[Node]) -> Vec<Finding> {
     let mut positions: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -278,8 +288,7 @@ pub fn check_duplicate_positions(nodes: &[Node]) -> Vec<Finding> {
                 Finding::warning(
                     "duplicate-node-position",
                     &format!(
-                        "Nodes at same position {}: {}. This creates visual overlap in n8n UI",
-                        pos,
+                        "Nodes at same position {pos}: {}. This creates visual overlap in n8n UI",
                         names.join(", ")
                     ),
                 )
@@ -292,6 +301,7 @@ pub fn check_duplicate_positions(nodes: &[Node]) -> Vec<Finding> {
 }
 
 /// Run per-node gotcha checks
+#[must_use]
 pub fn check_node(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     findings.extend(check_opencode_timeout(node));
@@ -304,6 +314,7 @@ pub fn check_node(node: &Node) -> Vec<Finding> {
 }
 
 /// Run workflow-level gotcha checks
+#[must_use]
 pub fn check_workflow(workflow: &Workflow, nodes: &[Node]) -> Vec<Finding> {
     let mut findings = vec![];
     findings.extend(check_tags_format(workflow));

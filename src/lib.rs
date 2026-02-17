@@ -2,11 +2,14 @@ pub mod finding;
 pub mod model;
 pub mod rules;
 
+use std::fmt::Write;
+
 use finding::{Finding, LintResult, Severity};
 use model::Workflow;
 
 /// Lint raw JSON string, returning structured results.
 /// This is the main entry point for the library.
+#[must_use]
 pub fn lint(json_str: &str) -> LintResult {
     let mut findings = Vec::new();
 
@@ -16,7 +19,7 @@ pub fn lint(json_str: &str) -> LintResult {
         Err(e) => {
             findings.push(Finding::error(
                 "invalid-json",
-                &format!("Failed to parse JSON: {}", e),
+                &format!("Failed to parse JSON: {e}"),
             ));
             return LintResult::new(findings);
         }
@@ -48,15 +51,14 @@ pub fn lint(json_str: &str) -> LintResult {
         Err(e) => {
             findings.push(Finding::error(
                 "schema-error",
-                &format!("Failed to parse workflow structure: {}", e),
+                &format!("Failed to parse workflow structure: {e}"),
             ));
             return LintResult::new(findings);
         }
     };
 
-    let nodes = match &workflow.nodes {
-        Some(n) => n,
-        None => return LintResult::new(findings),
+    let Some(nodes) = &workflow.nodes else {
+        return LintResult::new(findings);
     };
 
     // Phase 4: Validate each node has required fields
@@ -65,7 +67,7 @@ pub fn lint(json_str: &str) -> LintResult {
             findings.push(
                 Finding::error(
                     "node-missing-type",
-                    &format!("Node at index {} missing 'type' field", i),
+                    &format!("Node at index {i} missing 'type' field"),
                 )
                 .with_node(node.id_str(), node.name_str()),
             );
@@ -77,6 +79,7 @@ pub fn lint(json_str: &str) -> LintResult {
         findings.extend(rules::ssh::check_all(node));
         findings.extend(rules::ntfy::check_all(node));
         findings.extend(rules::code_node::check_all(node));
+        findings.extend(rules::extract_from_file::check_all(node));
         findings.extend(rules::gotchas::check_node(node));
     }
 
@@ -88,21 +91,26 @@ pub fn lint(json_str: &str) -> LintResult {
 }
 
 /// Convenience: lint a file path
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read.
 pub fn lint_file(path: &std::path::Path) -> anyhow::Result<LintResult> {
     let content = std::fs::read_to_string(path)?;
     Ok(lint(&content))
 }
 
 /// Format findings as human-readable text
+#[must_use]
 pub fn format_human(result: &LintResult, filename: &str) -> String {
     let mut out = String::new();
 
     if result.findings.is_empty() {
-        out.push_str(&format!("{}: All checks passed\n", filename));
+        let _ = writeln!(out, "{filename}: All checks passed");
         return out;
     }
 
-    out.push_str(&format!("{}\n", filename));
+    let _ = writeln!(out, "{filename}");
     out.push_str(&"=".repeat(filename.len()));
     out.push('\n');
 
@@ -119,7 +127,7 @@ pub fn format_human(result: &LintResult, filename: &str) -> String {
         .collect();
 
     if !errors.is_empty() {
-        out.push_str(&format!("\nErrors ({})\n", errors.len()));
+        let _ = writeln!(out, "\nErrors ({})", errors.len());
         out.push_str(&"-".repeat(40));
         out.push('\n');
         for f in &errors {
@@ -128,7 +136,7 @@ pub fn format_human(result: &LintResult, filename: &str) -> String {
     }
 
     if !warnings.is_empty() {
-        out.push_str(&format!("\nWarnings ({})\n", warnings.len()));
+        let _ = writeln!(out, "\nWarnings ({})", warnings.len());
         out.push_str(&"-".repeat(40));
         out.push('\n');
         for f in &warnings {
@@ -136,10 +144,11 @@ pub fn format_human(result: &LintResult, filename: &str) -> String {
         }
     }
 
-    out.push_str(&format!(
-        "\nSummary: {} error(s), {} warning(s)\n",
+    let _ = writeln!(
+        out,
+        "\nSummary: {} error(s), {} warning(s)",
         result.errors, result.warnings
-    ));
+    );
 
     out
 }
@@ -147,15 +156,15 @@ pub fn format_human(result: &LintResult, filename: &str) -> String {
 fn format_finding(out: &mut String, f: &Finding) {
     // Node context
     let node_info = match (&f.node_name, &f.node_id) {
-        (Some(name), Some(id)) => format!(" [{}] ({})", name, id),
-        (Some(name), None) => format!(" [{}]", name),
-        (None, Some(id)) => format!(" ({})", id),
+        (Some(name), Some(id)) => format!(" [{name}] ({id})"),
+        (Some(name), None) => format!(" [{name}]"),
+        (None, Some(id)) => format!(" ({id})"),
         (None, None) => String::new(),
     };
 
-    out.push_str(&format!("  {}: {}{}\n", f.rule, f.message, node_info));
+    let _ = writeln!(out, "  {}: {}{}", f.rule, f.message, node_info);
 
     if let Some(suggestion) = &f.suggestion {
-        out.push_str(&format!("    -> {}\n", suggestion));
+        let _ = writeln!(out, "    -> {suggestion}");
     }
 }

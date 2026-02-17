@@ -3,6 +3,7 @@ use crate::finding::Finding;
 use crate::model::Node;
 
 /// Check SSH nodes for resource+operation structure (must not use flat operation)
+#[must_use]
 pub fn check_resource_operation(node: &Node) -> Vec<Finding> {
     if !node.is_ssh() {
         return vec![];
@@ -23,9 +24,8 @@ pub fn check_resource_operation(node: &Node) -> Vec<Finding> {
                 Finding::error(
                     "ssh-resource-operation",
                     &format!(
-                        "SSH node uses flat operation '{}' without resource field. \
-                         n8n SSH nodes require both 'resource' and 'operation' parameters",
-                        op
+                        "SSH node uses flat operation '{op}' without resource field. \
+                         n8n SSH nodes require both 'resource' and 'operation' parameters"
                     ),
                 )
                 .with_node(node.id_str(), node.name_str())
@@ -38,6 +38,7 @@ pub fn check_resource_operation(node: &Node) -> Vec<Finding> {
 }
 
 /// Check SSH commands for bash syntax without bash -c wrapper
+#[must_use]
 pub fn check_bash_wrapper(node: &Node) -> Vec<Finding> {
     if !node.is_ssh() {
         return vec![];
@@ -59,15 +60,9 @@ pub fn check_bash_wrapper(node: &Node) -> Vec<Finding> {
             "export ", "$?", "if [", "if [", "]; then", "; then", "$(", "${",
         ];
 
-        // Also check for shell operators that suggest compound commands
-        let compound_indicators = ["&&", "||", "; "];
-
         let has_bash_syntax = bash_indicators.iter().any(|ind| cmd.contains(ind));
-        let has_compound = compound_indicators.iter().any(|ind| cmd.contains(ind));
 
-        // Only warn about compound commands if they also use bash-specific features
-        // Simple "cmd1 && cmd2" is fine, but "export X=y && cmd" is not
-        if has_bash_syntax || (has_compound && has_bash_syntax) {
+        if has_bash_syntax {
             findings.push(
                 Finding::error(
                     "ssh-bash-wrapper",
@@ -85,6 +80,7 @@ pub fn check_bash_wrapper(node: &Node) -> Vec<Finding> {
 }
 
 /// Run all SSH rules
+#[must_use]
 pub fn check_all(node: &Node) -> Vec<Finding> {
     let mut findings = vec![];
     findings.extend(check_resource_operation(node));

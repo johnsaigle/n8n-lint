@@ -1,0 +1,24 @@
+{
+  "name": "Extract From File Bad Operation",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "extract-1",
+      "name": "Extract JSON",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "parameters": {
+        "operation": "json"
+      },
+      "position": [200, 0]
+    }
+  ],
+  "connections": {}
+}
