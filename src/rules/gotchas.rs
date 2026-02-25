@@ -94,6 +94,19 @@ pub fn check_expression_syntax(node: &Node) -> Vec<Finding> {
     findings
 }
 
+/// Known placeholder patterns in credential IDs and values.
+/// These indicate credentials that were never configured with real values.
+const CREDENTIAL_PLACEHOLDER_PATTERNS: &[&str] = &[
+    "CONFIGURE_ME",
+    "REPLACE_WITH_",
+    "PLACEHOLDER",
+    "TODO",
+    "CHANGEME",
+    "INSERT_",
+    "YOUR_",
+    "XXX",
+];
+
 /// Check for placeholder credentials
 #[must_use]
 pub fn check_credential_placeholder(node: &Node) -> Vec<Finding> {
@@ -104,15 +117,65 @@ pub fn check_credential_placeholder(node: &Node) -> Vec<Finding> {
     {
         for (cred_type, cred_value) in obj {
             let cred_str = cred_value.to_string();
-            if cred_str.contains("CONFIGURE_ME") {
-                findings.push(
-                    Finding::error(
-                        "credential-placeholder",
-                        &format!("Credential '{cred_type}' has placeholder value 'CONFIGURE_ME'"),
-                    )
-                    .with_node(node.id_str(), node.name_str())
-                    .with_suggestion("Configure actual credentials in n8n UI before importing"),
-                );
+            let cred_upper = cred_str.to_uppercase();
+
+            // Check against all known placeholder patterns
+            for pattern in CREDENTIAL_PLACEHOLDER_PATTERNS {
+                if cred_upper.contains(pattern) {
+                    findings.push(
+                        Finding::error(
+                            "credential-placeholder",
+                            &format!(
+                                "Credential '{cred_type}' contains placeholder pattern '{pattern}' \
+                                 (value: {cred_str}). \
+                                 Credential IDs are opaque strings like 'Fy5DPVPe3GcEl7ZI' \
+                                 assigned by n8n — you cannot invent them"
+                            ),
+                        )
+                        .with_node(node.id_str(), node.name_str())
+                        .with_suggestion(
+                            "Get the real credential ID from a working workflow: \
+                             run n8n_get on a workflow that uses this credential type \
+                             and copy the {\"id\": \"...\", \"name\": \"...\"} block. \
+                             Do NOT rename the placeholder — the ID must match an \
+                             existing credential configured in the n8n UI",
+                        ),
+                    );
+                    break; // One finding per credential, not per pattern
+                }
+            }
+
+            // Check for credential IDs that look human-authored rather than n8n-generated.
+            // Real n8n credential IDs are 16-char alphanumeric strings (e.g. "Fy5DPVPe3GcEl7ZI").
+            // Human-authored IDs contain underscores, hyphens, spaces, or are too long/short.
+            if let Some(id) = cred_value.get("id")
+                && let Some(id_str) = id.as_str()
+                && !id_str.is_empty()
+            {
+                let looks_fabricated = id_str.contains('_')
+                    || id_str.contains('-')
+                    || id_str.contains(' ')
+                    || id_str.len() > 20
+                    || id_str.len() < 10
+                    || id_str.chars().all(|c| c.is_ascii_lowercase());
+
+                if looks_fabricated {
+                    findings.push(
+                        Finding::warning(
+                            "credential-suspicious-id",
+                            &format!(
+                                "Credential '{cred_type}' has ID '{id_str}' which doesn't look \
+                                 like an n8n-generated credential ID. Real IDs are ~16 char \
+                                 mixed-case alphanumeric strings (e.g. 'Fy5DPVPe3GcEl7ZI')"
+                            ),
+                        )
+                        .with_node(node.id_str(), node.name_str())
+                        .with_suggestion(
+                            "Verify this is a real credential ID from n8n, not a fabricated one. \
+                             Run n8n_get on a working workflow to find valid credential IDs",
+                        ),
+                    );
+                }
             }
 
             // Check for empty credential ID
@@ -122,10 +185,18 @@ pub fn check_credential_placeholder(node: &Node) -> Vec<Finding> {
                 findings.push(
                     Finding::error(
                         "credential-placeholder",
-                        &format!("Credential '{cred_type}' has empty ID"),
+                        &format!(
+                            "Credential '{cred_type}' has empty ID. \
+                             Credential IDs are opaque strings like 'Fy5DPVPe3GcEl7ZI' \
+                             assigned by n8n — you cannot invent them"
+                        ),
                     )
                     .with_node(node.id_str(), node.name_str())
-                    .with_suggestion("Configure credentials in n8n UI before importing"),
+                    .with_suggestion(
+                        "Get the real credential ID from a working workflow: \
+                         run n8n_get on a workflow that uses this credential type \
+                         and copy the {\"id\": \"...\", \"name\": \"...\"} block",
+                    ),
                 );
             }
         }
