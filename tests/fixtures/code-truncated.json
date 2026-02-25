@@ -1,0 +1,44 @@
+{
+  "name": "Truncated Code Node Test",
+  "nodes": [
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "truncated-dedup",
+      "name": "Filter New/Updated PRs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// DEDUP FILTER — Pick ONE PR to review per execution cycle\n// ═══════════════════════════════════════════════════════════════\n\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.reviewedPRs) staticData.reviewedPRs = {};\n\nconst allPRs = $('Fetch Open PRs').all().map(item => item.json);\nconst now = new Date().toISOString();\n\nconst existingReviews = new Map();\n\ntry {\n  const sshOutput = $('List Review Files').first().json;\n  const stdout = sshOutput.stdout || sshOutput.result || '';\n  const lines = stdout.split('\\n').filter(l => l.trim());\n\n  for (const line of lines) {\n    const nestedMatch = line.match(/\\/(\\d+)-[^/]+\\/([a-f0-9]{7,})\\/result\\.json$/);\n    if (nestedMatch) {\n      const prNum = parseInt(nestedMatch[1], 10);\n      const sha = nestedMatch[2];\n      if (!existingReviews.has(prNum)) existingReviews.set(prNum, new Set());\n      existingReviews.get(prNum).add(sha);\n      continue;\n    }\n\n    // Old flat format: .../pr-4674-20260218-14"
+      },
+      "position": [300, 0]
+    },
+    {
+      "id": "good-code",
+      "name": "Good Code Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// Simple working code node\nconst items = $input.all();\nconst result = items.map(item => ({\n  json: { processed: true, data: item.json }\n}));\nreturn result;\n"
+      },
+      "position": [600, 0]
+    },
+    {
+      "id": "no-return-code",
+      "name": "Missing Return",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// This code has logic but no return statement - it processes items and filters them.\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  if (item.json.status === 'active') {\n    filtered.push(item);\n  }\n}\nconsole.log('done filtering');\n"
+      },
+      "position": [900, 0]
+    }
+  ],
+  "connections": {}
+}

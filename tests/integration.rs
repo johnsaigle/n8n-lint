@@ -485,6 +485,146 @@ fn extract_from_file_no_suggestion_for_garbage() {
     );
 }
 
+// ── Truncated Code Detection ─────────────────────────────────────
+
+#[test]
+fn code_truncated_unbalanced_braces() {
+    let result = n8n_lint::lint_file(&fixture("code-truncated.json")).unwrap();
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "code-truncated")
+        .collect();
+    // Should find at least the truncated node (unbalanced braces + missing return)
+    assert!(
+        !findings.is_empty(),
+        "Expected code-truncated finding for truncated dedup filter"
+    );
+    // The truncated node should be flagged
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.node_name.as_deref() == Some("Filter New/Updated PRs")),
+        "Expected finding on 'Filter New/Updated PRs' node"
+    );
+    // The good code node should NOT be flagged
+    assert!(
+        !findings
+            .iter()
+            .any(|f| f.node_name.as_deref() == Some("Good Code Node")),
+        "Good Code Node should not trigger code-truncated"
+    );
+}
+
+#[test]
+fn code_truncated_missing_return() {
+    let result = n8n_lint::lint_file(&fixture("code-truncated.json")).unwrap();
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "code-truncated" && f.node_name.as_deref() == Some("Missing Return"))
+        .collect();
+    assert!(
+        !findings.is_empty(),
+        "Expected code-truncated finding for code with logic but no return"
+    );
+    // Should have at least one finding mentioning missing return or truncation
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.message.contains("no return") || f.message.contains("truncated")),
+        "Expected finding about missing return or truncation: {:?}",
+        findings.iter().map(|f| &f.message).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn code_truncated_ends_mid_comment() {
+    // Simulate code that ends mid-comment (like the real Wormhole bug)
+    // Must be >80 chars to pass the minimum length check
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "mid-comment",
+            "name": "Cut Off Code",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "parameters": {
+                "jsCode": "// DEDUP FILTER\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.reviewedPRs) staticData.reviewedPRs = {};\nconst allPRs = $('Fetch Open PRs').all().map(item => item.json);\n// Old flat format: .../pr-4674-20260218-14"
+            },
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "code-truncated")
+        .collect();
+    assert!(
+        !findings.is_empty(),
+        "Expected code-truncated finding for code ending mid-comment"
+    );
+}
+
+#[test]
+fn code_truncated_not_triggered_on_valid_code() {
+    // A well-formed Code node should not trigger
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "valid-code",
+            "name": "Valid Code",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "parameters": {
+                "jsCode": "// Process items\nconst items = $input.all();\nconst result = [];\nfor (const item of items) {\n  if (item.json.active) {\n    result.push({ json: item.json });\n  }\n}\nreturn result;\n"
+            },
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "code-truncated")
+        .collect();
+    assert!(
+        findings.is_empty(),
+        "Valid code should not trigger code-truncated: {:?}",
+        findings
+    );
+}
+
+#[test]
+fn code_truncated_not_triggered_on_short_code() {
+    // Very short code (one-liners) should not trigger
+    let json = r#"{
+        "name": "test",
+        "nodes": [{
+            "id": "short-code",
+            "name": "Short Code",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "parameters": {
+                "jsCode": "return [{json: {ok: true}}];"
+            },
+            "position": [0, 0]
+        }]
+    }"#;
+    let result = n8n_lint::lint(json);
+    let findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule == "code-truncated")
+        .collect();
+    assert!(
+        findings.is_empty(),
+        "Short code should not trigger code-truncated: {:?}",
+        findings
+    );
+}
+
 // ── Output Formats ───────────────────────────────────────────────
 
 #[test]
